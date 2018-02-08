@@ -19,6 +19,7 @@ sprite_size = 32
 screen_width = sprite_number_x * sprite_size
 screen_height = sprite_number_y * sprite_size
 
+
 #title
 title = "Aidez McGyver à s'échapper"
 
@@ -30,7 +31,8 @@ keeper_image = 'gardien32.png'
 needle_image = 'needle0.png'
 blowgun_image = 'blowgun1.png'
 ether_image = 'brilliant_blue.png'
-inventory_image ='slot.png'
+inventory_image ='unseen.png'
+slot_image = 'slot.png'
 
 ### CLASSES ###
 
@@ -54,20 +56,13 @@ class Level():
                 map_frame.append(map_line)
             self.frame = map_frame
 
-            
-#    def draw(self):
-#       """Draw the loaded level in console"""
-#
-#        i = 0
-#        while i < len(self.frame):
-#            print("|".join(self.frame[i]))
-#            i += 1
 
     def draw(self, screen):
 
         wall = pygame.image.load(wall_image).convert()
         floor = pygame.image.load(floor_image).convert()
         inventory = pygame.image.load(inventory_image).convert()
+        slot = pygame.image.load(slot_image).convert()
 
         n_line = 0
         for line in self.frame:
@@ -79,16 +74,19 @@ class Level():
                     screen.blit(wall, (x,y))
                 elif sprite == '_':
                     screen.blit(floor, (x,y))
-                elif sprite == 'I':
+                elif sprite == 'U':
                     screen.blit(inventory, (x,y))
+                elif sprite == 'I':
+                    screen.blit(slot, (x,y))
                 n_tile += 1
             n_line += 1
 
 
 class Sprite():
     """General class to manage sprites in the game"""
-    def __init__(self, image, tile_y, tile_x, level):
+    def __init__(self, image, name, tile_y, tile_x, level):
         self.image = pygame.image.load(image).convert_alpha()
+        self.name = ""
         self.tile_x = tile_x #actual x tile location
         self.tile_y = tile_y #actual y tile location
         self.x = tile_x * sprite_size #actual x location of sprite in pixels
@@ -124,18 +122,49 @@ class Sprite():
                     if self.level.frame[self.tile_y+1][self.tile_x] != 'I':
                         self.tile_y += 1
                         self.y = self.tile_y * sprite_size
+    
 
+    def spawn(self, tile_y, tile_x):
+        """spawn a sprite and put an O symbol in level to prevent spawning other sprites
+        on the same tile"""
+        self.tile_y = tile_y
+        self.tile_x = tile_x
+        self.level.frame[self.tile_y][self.tile_x] == 'O'
+        self.y = self.tile_y * sprite_size
+        self.x = self.tile_x * sprite_size
+
+
+
+    def rdm_spawn(self):
+        """randomely spawn sprite avoiding walls 'X' and other spawned sprites 'O'"""
+        spawn = 0
+        while spawn == 0:
+
+            self.tile_y = random.randrange(1,14)
+            self.tile_x = random.randrange(1,14)
+
+            if self.level.frame[self.tile_y][self.tile_x] != 'X':
+                if self.level.frame[self.tile_y][self.tile_x] != 'O': 
+
+                    self.level.frame[self.tile_y][self.tile_x] == 'O'
+                    self.y = self.tile_y * sprite_size
+                    self.x = self.tile_x * sprite_size
+                    spawn = 1
+
+    def pickup(self):
+        """Transfer item to inventory slot"""
+        if (player.tile_x, player.tile_y) == (self.tile_x, self.tile_y):
+            new_inventory.items_set.add(self.name)
+            self.tile_y = 15
+            self.tile_x = 4
+            self.y = self.tile_y * sprite_size
+            self.x = self.tile_x * sprite_size
 
 class Inventory():
     """character inventory, items required to win the game against the boss"""
     def __init__(self):
         self.items_set = set([])
 
-    def pickup(self):    
-        self.items_set.add()
-
-    def draw(self):
-        pass
 
 
 ### MAIN ###
@@ -154,11 +183,21 @@ new_level.load()
 new_level.draw(screen)
 
 new_inventory = Inventory()
-player = Sprite(mcgyver_image, 13, 1, new_level)
-keeper = Sprite(keeper_image, 1, 13, new_level)
-needle = Sprite(needle_image, random.randrange(2,13), random.randrange(2,13), new_level)
-blowgun = Sprite(blowgun_image, random.randrange(2,13), random.randrange(2,13), new_level)
-ether = Sprite(ether_image, random.randrange(2,13), random.randrange(2,13), new_level)
+
+player = Sprite(mcgyver_image, "player", 0, 0, new_level)
+player.spawn(13,1)
+
+keeper = Sprite(keeper_image, "keeper", 0, 0, new_level)
+keeper.spawn(1,13)
+
+needle = Sprite(needle_image, "needle", 0, 0, new_level)
+needle.rdm_spawn()
+
+blowgun = Sprite(blowgun_image, "blowgun", 0, 0, new_level)
+blowgun.rdm_spawn()
+
+ether = Sprite(ether_image, "ether", 0, 0, new_level)
+ether.rdm_spawn()
 
 while game == 1:
 
@@ -185,24 +224,30 @@ while game == 1:
                 player.move('right')
        
 
-    if (player.x, player.y) == (needle.x, needle.y):
-        new_inventory.items_set.add("needle")
+    if (player.tile_x, player.tile_y) == (needle.tile_x, needle.tile_y):
+        new_inventory.items_set.add(needle.name)
         needle.tile_y = 15
-        needle.tile_x = 2
+        needle.tile_x = 6
+        needle.y = needle.tile_y * sprite_size
+        needle.x = needle.tile_x * sprite_size
         
 
-    elif (player.x, player.y) == (blowgun.x, blowgun.y):
-        new_inventory.items_set.add("blowgun")
+    elif (player.tile_x, player.tile_y) == (blowgun.tile_x, blowgun.tile_y):
+        new_inventory.items_set.add(blowgun.name)
         blowgun.tile_y = 15
-        blowgun.tile_x = 4
+        blowgun.tile_x = 7
+        blowgun.y = blowgun.tile_y * sprite_size
+        blowgun.x = blowgun.tile_x * sprite_size
 
-    elif (player.x, player.y) == (ether.x, ether.y):
-        new_inventory.items_set.add("ether")
+    elif (player.tile_x, player.tile_y) == (ether.tile_x, ether.tile_y):
+        new_inventory.items_set.add(ether.name)
         ether.tile_y = 15
-        ether.tile_x = 6
+        ether.tile_x = 8
+        ether.y = ether.tile_y * sprite_size
+        ether.x = ether.tile_x * sprite_size
 
 
-    if (player.x, player.y) == (keeper.x, keeper.y):
-        if new_inventory.items_set == {"needle", "blowgun", "ether"}:
+    if (player.tile_x, player.tile_y) == (keeper.tile_x, keeper.tile_y):
+        if new_inventory.items_set == {needle.name, blowgun.name, ether.name}:
             game = 0
 
